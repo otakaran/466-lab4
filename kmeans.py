@@ -5,6 +5,7 @@ import linecache
 import sys
 
 def euclid_distances(X, centroids):
+
     distances = pd.DataFrame()
     for cluster in range(len(centroids)):
         distances[cluster] = np.sqrt(((X - centroids[cluster]) ** 2).sum(axis=1))
@@ -15,12 +16,12 @@ def select_Centroids(data, k):
     data_center = X.mean()
     centroids = [[] for i in range(k)]
     index = int(euclid_distances(X, [data_center]).idxmax().values)
-    centroids[0] = list(X.iloc[index])
+    centroids[0] = list(X.loc[index])
     X = X.drop(index)
     for cluster in range(1, k):
         index = euclid_distances(X, centroids[:cluster]).sum(axis=1).argmax()
         centroids[cluster] = list(X.iloc[index])
-        X = X.drop(index)
+        X = X.reset_index(drop=True).drop(index)
     return centroids
 
 def k_means(data, k):
@@ -58,7 +59,7 @@ def readData(fileName, dropcols = []):
     # Drop columns for which the header has a value of '0'
     for i, col in enumerate(header):
         if col == '0': dropcols.append(i)
-    df.drop(dropcols, axis=1)
+    df = df.drop(dropcols, axis=1)
     return df
 
 if __name__ == "__main__":
@@ -68,10 +69,9 @@ if __name__ == "__main__":
         k = 5
     else: fileName, k = handleCommandLineParams(sys.argv)
     data = readData(fileName)
-
     k_means_result = k_means(data, k)
 
-    #clusters = pd.concat([data, pd.Series(k_means_result, name="clusters")], axis=1)
+    clusters = pd.concat([data, pd.Series(k_means_result, name="clusters")], axis=1)
 
-    #plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
-    #plt.show()
+    plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
+    plt.show()
