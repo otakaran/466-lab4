@@ -40,15 +40,15 @@ def exitHelpMessage(error = None):
     if error is not None: print(error)
     print('USAGE: python kmeans.py <Filename> <k>')
     print('- <Filename> is the name of the CSV file containing the input dataset.')
-    print('- <k>is the number of clusters the program has to produce.')
+    print('- <k> is the number of clusters the program has to produce.')
     exit(-1)
 
 def handleCommandLineParams(arguments):
     if len(arguments) == 3:
         fileName = arguments[1]
         try: k = int(arguments[2])
-        except: exitHelpMessage()
-    else: exitHelpMessage("Argument k is not an int")
+        except: exitHelpMessage("Argument k is not an int")
+    else: exitHelpMessage("Argument count incorrect")
     return fileName, k
 
 def readData(fileName, dropcols = []):
@@ -58,7 +58,7 @@ def readData(fileName, dropcols = []):
     # Drop columns for which the header has a value of '0'
     for i, col in enumerate(header):
         if col == '0': dropcols.append(i)
-    df.drop(dropcols, axis=1)
+    df = df.drop(dropcols, axis=1)
     return df
 
 if __name__ == "__main__":
