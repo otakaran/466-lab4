@@ -62,16 +62,36 @@ def readData(fileName, dropcols = []):
     df = df.drop(dropcols, axis=1)
     return df
 
+def create_output(data):
+    for cluster in data["clusters"].unique():
+        subset = data[data["clusters"] == cluster].drop("clusters", axis=1)
+        center = list(subset.mean())
+        distances = euclid_distances(subset, [center])
+        SSE = (distances ** 2).sum()
+        print("Cluster ", cluster, ":")
+        print("Center:", center)
+        print("Max Distance to Center:", float(distances.max()))
+        print("Min Distance to Center:", float(distances.min()))
+        print("Avg Distance to Center:", float(distances.mean()))
+        print("Cluster SSE:", float(SSE))
+        print(len(subset), " Points:")
+        for row in range(len(subset)):
+            print(list(subset.iloc[row]))
+        print("")
+
 if __name__ == "__main__":
     TESTING = True
     if TESTING:
         fileName = "input_files/mammal_milk.csv"
-        k = 5
+        k = 4
     else: fileName, k = handleCommandLineParams(sys.argv)
     data = readData(fileName)
+
     k_means_result = k_means(data, k)
 
     clusters = pd.concat([data, pd.Series(k_means_result, name="clusters")], axis=1)
 
-    plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
-    plt.show()
+    create_output(clusters)
+
+    #plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
+    #plt.show()
