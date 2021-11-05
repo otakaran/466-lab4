@@ -60,23 +60,19 @@ def buildPointList(data, VERBOSE):
     # This is a slow operation, improve if effeciency is a concern
     for point in data.itertuples():
         coordinates = list(point)
-        P = DBPoint(coordinates[1:])
+        P = DBPoint(np.asarray(coordinates[1:]))
         listOfDBPoints.append(P)
     if VERBOSE:
         for point in listOfDBPoints: print(point)
     return listOfDBPoints
 
 def DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE):
-    # Now we loop through each point one by one
-    # Update the point based on the number of points within its epsilon radius
-    # Update further if numPoints is large enough, expand that cluster
-    
     for point in listOfDBPoints:
         # If we have visited this point already don't check it again
         if point.visited: continue
         for point2 in listOfDBPoints:
             # Check if the point is in range
-            point2InRange = pointInEpsilon(point, point2, epsilon)
+            point2InRange = pointInEpsilon(point.location, point2.location, point.dim, epsilon)
 
             # If it is in range, append it to the the first points neighbors
             if point2InRange: 
@@ -89,7 +85,6 @@ def DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE):
         # If it has enough neighbors it is a core point
         if point.numNeighbors >= numPoints: point.type = 2
             
-
     # We now have all points which are core, each in their own cluster
     curCluster = 0
     for point in listOfDBPoints:
@@ -98,19 +93,16 @@ def DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE):
             point.cluster = curCluster
             expandCluster(point, listOfDBPoints, curCluster)
             curCluster += 1
-
     for point in listOfDBPoints:
         if point.type is None:
             if point.cluster is not None: point.type = 1
             else: 
                 point.cluster =-1
                 point.type = 0
-
-
     if VERBOSE: 
         for point in listOfDBPoints: print(point)
-
     return curCluster
+
 
 def expandCluster(point, listOfDBPoints, curCluster):
     for pointNeighbor in point.neighbors:
@@ -120,51 +112,80 @@ def expandCluster(point, listOfDBPoints, curCluster):
         elif pointNeighbor.cluster != curCluster: pointNeighbor.cluster = curCluster
         
 
-
-# TODO Use a different distance calculator
-def pointInEpsilon(p1, p2, epsilon):
-    for axis in range(p1.dim):
-        maxAxis = p1.location[axis] + epsilon 
-        minAxis = p1.location[axis] - epsilon 
-        if p2.location[axis] > maxAxis or p2.location[axis] < minAxis: return False
-    return True
+def pointInEpsilon(p1, p2, dim, epsilon = None):
+    distance = np.linalg.norm(p1 - p2)
+    if epsilon is not None: return (distance <= epsilon)
+    return distance
 
 
-#TODO implement lol
+def pointListToClusterList(listOfDBPoints, numClusters):
+    clustersArr = []
+    for curCluster in range(-1, numClusters):
+        cluster = ([point.location for point in listOfDBPoints if point.cluster == curCluster])
+        clustersArr.append(np.asarray(cluster))
+    return clustersArr
+
+
+def centeroidnp(arr):
+    length, dim = arr.shape
+    return np.array([np.sum(arr[:, i])/length for i in range(dim)])
+
+
 def outputResults(listOfDBPoints, numClusters):
-    # 1. Cluster number (name)
-    # 2. Coordinates of its centroid.
-    # 3. Maximum distance from a point to cluster centroid.
-    # 4. minimum distance from a point to cluster centroid.
-    # 5. average distance from a point to cluster centroid.
-    # 6. Sum of Squared Errors (SSE) for the points in the cluster.
-    # 7. *Number of points in the cluster, and then all of the points coordinates printed
-    # --- OUTLIER INFO ONLY FOR DBSCAN
-    # Total number of outliers, 
-    # percentage of the dataset outliers constitute
-    # List of outliers
-    for cluster in range(numClusters):
-        pass
-       
+    clustersArr = pointListToClusterList(listOfDBPoints, numClusters)
+    dim = listOfDBPoints[0].dim
+    PRECISION = 2
+    np.set_printoptions(formatter={'float': f'{{:0.{PRECISION}f}}'.format})
+
+    print ('------------------------------------')
+    print(f'----- DBSCAN CLUSTERING OUTPUT -----')
+    print ('------------------------------------')
+
+    for index, cluster in enumerate(clustersArr):
+        if index == 0: continue   # Skip the outlier cluster, it will be printed at the end
+        cent = centeroidnp(cluster)
+        distances = [pointInEpsilon(point, cent, dim) for point in cluster]
+        print(f'------------ Cluster: {index} ------------')
+        print(f'Center: {cent}')
+        print(f'Max Distance to Center: {round(np.max(distances), PRECISION)}')
+        print(f'Min Distance to Center: {round(np.min(distances), PRECISION)}')
+        print(f'Avg Distance to Center: {round(np.mean(distances), PRECISION)}')
+        print(f'Sum of Squared Errors: {round(np.square(np.subtract(cluster, cent)).sum(), PRECISION)}')
+        # 6. Sum of Squared Errors (SSE) for the points in the cluster.
+        print(f'{len(cluster)} Points:')
+        for point in cluster: print(point)
+        print ('------------------------------------')
+    # Outlier info
+    print(f'-------- OUTLIER STATISTICS --------')
+    print(f'Percent of data as outliers: {round(len(clustersArr[0])/len(listOfDBPoints), PRECISION)}')
+    print(f'Total number of outliers: {len(clustersArr[0])}')
+    for point in clustersArr[0]: print(point)
+
 
 if __name__ == "__main__":
     TESTING = True
     VERBOSE = 0
+    SHOW_PLOT = False
     if TESTING:
-        fileName = "input_files/iris.csv"
-        epsilon = 5
-        numPoints = 5
+        fileName = "input_files/AccidentsSet03.csv"
+        epsilon = 1
+        numPoints = 2
+        # Good for iris?
+        #epsilon = 1
+        #numPoints = 2
     else: fileName, epsilon, numPoints = handleCommandLineParams(sys.argv)
     data = readData(fileName)
     listOfDBPoints = buildPointList(data, VERBOSE)
-    DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE)
+    numClusters = DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE)
 
+    print(f'Epsilon: {epsilon}, MinPoints: {numPoints} - Created {numClusters} clusters.')
     outputResults(listOfDBPoints, numClusters)
     
     # Hwere we graph... TODO: move to function
-    clusters = []
-    for point in listOfDBPoints: clusters.append(point.cluster)
-    clusters = pd.concat([data, pd.Series(clusters, name="clusters")], axis=1)
-    plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
-    #plt.scatter(data.iloc[:,0], data.iloc[:,1])
-    plt.show()
+    if SHOW_PLOT:
+        clusters = []
+        for point in listOfDBPoints: clusters.append(point.cluster)
+        clusters = pd.concat([data, pd.Series(clusters, name="clusters")], axis=1)
+        plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
+        #plt.scatter(data.iloc[:,0], data.iloc[:,1])
+        plt.show()
