@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
+import json
 import matplotlib.pyplot as plt
+from kmeans import create_output
+import linecache
+import sys
 
 
 def distance_matrix(data):
@@ -14,7 +18,7 @@ def distance_matrix(data):
 def agglomerative(data):
     # Initialize Clusters, Leaf Nodes, and Distance Matrix
     clusters = [[x] for x in range(len(data))]
-    nodes = {x: {"type": "leaf", "height": 0.0, "data": data.iloc[x].values} for x in range(len(data))}
+    nodes = {x: {"type": "leaf", "height": 0.0, "data": list(data.iloc[x].values)} for x in range(len(data))}
     distances = distance_matrix(data)
 
     # Size keeps track of original data size; i is how many new clusters - 1
@@ -27,7 +31,7 @@ def agglomerative(data):
 
         # Create the new clusters and nodes
         clusters.append([r,c])
-        if len(clusters) == 2 * size - 2:
+        if len(clusters) == 2 * size - 1:
             nodes[size + i] = {"type": "root", "height": dist, "nodes": [nodes[r], nodes[c]]}
         else:
             nodes[size + i] = {"type": "node", "height": dist, "nodes": [nodes[r], nodes[c]]}
@@ -69,15 +73,52 @@ def get_leaf_nodes(tree, cluster):
         clusters.append(cluster)
     return clusters
 
+def exitHelpMessage(error = None):
+    if error is not None: print(error)
+    print('USAGE: python hclustering.py <Filename> <k>')
+    print('- <Filename> is the name of the CSV file containing the input dataset.')
+    print('- [<threshold>] is the optional number of clusters the program has to produce.')
+    exit(-1)
 
-data = pd.read_csv("resources/datasets/4clusters.csv")
-threshold = 30
+def handleCommandLineParams(arguments):
+    if len(arguments) == 2:
+        fileName = arguments[1]
+        threshold = None
+    elif len(arguments) == 3: 
+        fileName = arguments[1]
+        try: threshold = int(arguments[2])
+        except: exitHelpMessage("Argument threshold is not an int")
+    else: exitHelpMessage("Argument count incorrect")
+    return fileName, threshold
 
-dendrogram = agglomerative(data)
-cluster_list = get_clusters(dendrogram, threshold)
-assignments = pd.DataFrame()
-for cluster in range(len(cluster_list)):
-    assignments = assignments.append(get_leaf_nodes(cluster_list[cluster], cluster), ignore_index=True)
+def readData(fileName, dropcols = []):
+    try: df = pd.read_csv(fileName, skiprows = 1, header = None)
+    except Exception as e: exit(f"ERROR ON {fileName}: {e}")
+    header = linecache.getline(fileName, 1).strip().split(",")
+    # Drop columns for which the header has a value of '0'
+    for i, col in enumerate(header):
+        if col == '0': dropcols.append(i)
+    df = df.drop(dropcols, axis=1)
+    return df
 
-plt.scatter(assignments.iloc[:,0], assignments.iloc[:,1], c=assignments.iloc[:,-1])
-plt.show()
+if __name__ == "__main__":
+    TESTING = False
+    if TESTING:
+        fileName = "input_files/mammal_milk.csv"
+        threshold = None
+    else: fileName, threshold = handleCommandLineParams(sys.argv)
+    data = readData(fileName)
+
+    dendrogram = agglomerative(data)
+    print(json.dumps(dendrogram, indent=1))
+
+    if threshold:
+        cluster_list = get_clusters(dendrogram, threshold)
+        assignments = pd.DataFrame()
+        for cluster in range(len(cluster_list)):
+            assignments = assignments.append(get_leaf_nodes(cluster_list[cluster], cluster), ignore_index=True)
+
+        create_output(assignments)
+
+    #plt.scatter(assignments.iloc[:,0], assignments.iloc[:,1], c=assignments.iloc[:,-1])
+    #plt.show()

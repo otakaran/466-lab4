@@ -5,7 +5,6 @@ import linecache
 import sys
 
 def euclid_distances(X, centroids):
-
     distances = pd.DataFrame()
     for cluster in range(len(centroids)):
         distances[cluster] = np.sqrt(((X - centroids[cluster]) ** 2).sum(axis=1))
@@ -62,9 +61,9 @@ def readData(fileName, dropcols = []):
     df = df.drop(dropcols, axis=1)
     return df
 
-def create_output(data):
-    for cluster in data["clusters"].unique():
-        subset = data[data["clusters"] == cluster].drop("clusters", axis=1)
+def create_output(data, name = None):
+    for cluster in data.iloc[:, -1].unique():
+        subset = data[data.iloc[:, -1] == cluster].drop(data.columns.to_list()[-1], axis=1)
         center = list(subset.mean())
         distances = euclid_distances(subset, [center])
         SSE = (distances ** 2).sum()
@@ -91,7 +90,7 @@ if __name__ == "__main__":
 
     clusters = pd.concat([data, pd.Series(k_means_result, name="clusters")], axis=1)
 
-    create_output(clusters)
+    create_output(clusters, "clusters")
 
     #plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
     #plt.show()
