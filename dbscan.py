@@ -66,95 +66,62 @@ def buildPointList(data, VERBOSE):
         for point in listOfDBPoints: print(point)
     return listOfDBPoints
 
-def DBSCAN(listOfDBPoints, epsilon, numPoints):
+def DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE):
     # Now we loop through each point one by one
     # Update the point based on the number of points within its epsilon radius
     # Update further if numPoints is large enough, expand that cluster
-    curCluster = 0
+    
     for point in listOfDBPoints:
         # If we have visited this point already don't check it again
         if point.visited: continue
         for point2 in listOfDBPoints:
-            # Skip if same point
-            if point.location == point2.location: continue
-
             # Check if the point is in range
             point2InRange = pointInEpsilon(point, point2, epsilon)
 
             # If it is in range, append it to the the first points neighbors
             if point2InRange: 
-                print(f"FOUND {point.location} in range of {point2.location}")
-                if point2.cluster is None:
-                    point.neighbors.append(point2)
-                    point.numNeighbors += 1
-                else:
-                    point.numNeighbors += 1 # maybe this is wrong?
-                    print(f"Could not add that point to cluster {curCluster} because it was already in {point2.cluster}")
+                if VERBOSE > 1: print(f"FOUND {point2.location} in range of {point.location}")
+                point.neighbors.append(point2)
+                point.numNeighbors += 1
 
         #Mark the point as visited
         point.visited = True
-
-        # Now how do we classify it?
-        # If not enough points it is an outlier or possibly boundry
-        if point.numNeighbors < numPoints:
-            point.type = 0
-
-        # If it has enough it is a core point
-        if point.numNeighbors >= numPoints:
-            point.type = 2
-            point.cluster = curCluster
-            # All of its neighbors will be in its cluster (we don't know if they will be core or boundry)
-            for coreNeighbor in point.neighbors:
-                # Don't explore points that are already visited and labled
-                if coreNeighbor.visited and coreNeighbor.cluster is not None: continue
-                coreNeighbor.cluster = curCluster
-                coreNeighbor = expandCluster(coreNeighbor, listOfDBPoints, curCluster, numPoints)
-            # Set up for next cluster
-            curCluster += 1
-    for point in listOfDBPoints: print(point)
-
-        
-def expandCluster(point, listOfDBPoints, curCluster, numPoints):
-    for point2 in listOfDBPoints:
-        # Skip if same point
-        if point.location == point2.location: continue
-
-        # Check if the point is in range
-        point2InRange = pointInEpsilon(point, point2, epsilon)
-
-        # If it is in range, append it to the the first points neighbors
-        if point2InRange: 
-            print(f"FOUND {point.location} in range of {point2.location}")
-            point.neighbors.append(point2)
-            point.numNeighbors += 1
+        # If it has enough neighbors it is a core point
+        if point.numNeighbors >= numPoints: point.type = 2
             
-            # if point2.cluster is None:
-            #     point.neighbors.append(point2)
-            #     point.numNeighbors += 1
-            # else:
-            #     point.numNeighbors += 1 # maybe this is wrong?
-            #     print(f"Could not add that point to cluster {curCluster} because it was already in {point2.cluster}")
 
-    # FOund another core point, expand on it
-    if point.numNeighbors >= numPoints:
-        point.cluster = curCluster
-        point.type = 2
+    # We now have all points which are core, each in their own cluster
+    curCluster = 0
+    for point in listOfDBPoints:
+        if not point.type == 2: continue
+        if point.cluster is None: 
+            point.cluster = curCluster
+            expandCluster(point, listOfDBPoints, curCluster)
+            curCluster += 1
+
+    for point in listOfDBPoints:
+        if point.type is None:
+            if point.cluster is not None: point.type = 1
+            else: 
+                point.cluster =-1
+                point.type = 0
+
+
+    if VERBOSE: 
+        for point in listOfDBPoints: print(point)
+
+    return curCluster
+
+def expandCluster(point, listOfDBPoints, curCluster):
+    for pointNeighbor in point.neighbors:
+        if pointNeighbor.type == 2 and pointNeighbor.cluster != curCluster:
+            pointNeighbor.cluster = curCluster
+            expandCluster(pointNeighbor, listOfDBPoints, curCluster)
+        elif pointNeighbor.cluster != curCluster: pointNeighbor.cluster = curCluster
         
-        # reccusrive call
-        for coreNeighbor in point.neighbors:
-            # Don't explore points that are already visited and labled
-            if coreNeighbor.visited and coreNeighbor.cluster is not None: continue
-            coreNeighbor = expandCluster(coreNeighbor, listOfDBPoints, curCluster, numPoints)
-    
-    # Else we found a boundry point, do not explore further
-    else:
-        point.cluster = curCluster
-        point.type = 1
-
-    point.visited = True
-    return point
 
 
+# TODO Use a different distance calculator
 def pointInEpsilon(p1, p2, epsilon):
     for axis in range(p1.dim):
         maxAxis = p1.location[axis] + epsilon 
@@ -162,21 +129,42 @@ def pointInEpsilon(p1, p2, epsilon):
         if p2.location[axis] > maxAxis or p2.location[axis] < minAxis: return False
     return True
 
+
+#TODO implement lol
+def outputResults(listOfDBPoints, numClusters):
+    # 1. Cluster number (name)
+    # 2. Coordinates of its centroid.
+    # 3. Maximum distance from a point to cluster centroid.
+    # 4. minimum distance from a point to cluster centroid.
+    # 5. average distance from a point to cluster centroid.
+    # 6. Sum of Squared Errors (SSE) for the points in the cluster.
+    # 7. *Number of points in the cluster, and then all of the points coordinates printed
+    # --- OUTLIER INFO ONLY FOR DBSCAN
+    # Total number of outliers, 
+    # percentage of the dataset outliers constitute
+    # List of outliers
+    for cluster in range(numClusters):
+        pass
+       
+
 if __name__ == "__main__":
     TESTING = True
-    VERBOSE = True
+    VERBOSE = 0
     if TESTING:
-        fileName = "input_files/4clusters.csv"
-        epsilon = 3
-        numPoints = 2
+        fileName = "input_files/iris.csv"
+        epsilon = 5
+        numPoints = 5
     else: fileName, epsilon, numPoints = handleCommandLineParams(sys.argv)
     data = readData(fileName)
     listOfDBPoints = buildPointList(data, VERBOSE)
-    DBSCAN(listOfDBPoints, epsilon, numPoints)
+    DBSCAN(listOfDBPoints, epsilon, numPoints, VERBOSE)
 
-
+    outputResults(listOfDBPoints, numClusters)
+    
+    # Hwere we graph... TODO: move to function
     clusters = []
     for point in listOfDBPoints: clusters.append(point.cluster)
     clusters = pd.concat([data, pd.Series(clusters, name="clusters")], axis=1)
     plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
-    #plt.show()
+    #plt.scatter(data.iloc[:,0], data.iloc[:,1])
+    plt.show()
