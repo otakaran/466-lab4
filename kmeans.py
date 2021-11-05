@@ -60,23 +60,29 @@ def readData(fileName, dropcols = []):
         if col == '0': dropcols.append(i)
     df = df.drop(dropcols, axis=1)
     return df
+    
 
-def create_output(data, name = None):
+def create_output(data):
+    PRECISION = 2
+    np.set_printoptions(formatter={'float': f'{{:0.{PRECISION}f}}'.format})
+    print ('------------------------------------')
+    print(f'----- KMEANS CLUSTERING OUTPUT -----')
+    print ('------------------------------------')
     for cluster in data.iloc[:, -1].unique():
         subset = data[data.iloc[:, -1] == cluster].drop(data.columns.to_list()[-1], axis=1)
         center = list(subset.mean())
         distances = euclid_distances(subset, [center])
         SSE = (distances ** 2).sum()
-        print("Cluster ", cluster, ":")
-        print("Center:", center)
-        print("Max Distance to Center:", float(distances.max()))
-        print("Min Distance to Center:", float(distances.min()))
-        print("Avg Distance to Center:", float(distances.mean()))
-        print("Cluster SSE:", float(SSE))
-        print(len(subset), " Points:")
-        for row in range(len(subset)):
-            print(list(subset.iloc[row]))
-        print("")
+        print(f'------------ Cluster: {cluster} ------------')
+        print(f'Center: {center}')
+        print(f'Max Distance to Center: {round(float(np.max(distances)), PRECISION)}')
+        print(f'Min Distance to Center: {round(float(np.min(distances)), PRECISION)}')
+        print(f'Avg Distance to Center: {round(float(np.mean(distances)), PRECISION)}')
+        print(f'Sum of Squared Errors: {round(float(SSE), PRECISION)}')
+        # 6. Sum of Squared Errors (SSE) for the points in the cluster.
+        print(f'{len(subset)} Points:')
+        for point in range(len(subset)): print(list(subset.iloc[point]))
+        print ('------------------------------------')
 
 if __name__ == "__main__":
     TESTING = True
@@ -90,7 +96,7 @@ if __name__ == "__main__":
 
     clusters = pd.concat([data, pd.Series(k_means_result, name="clusters")], axis=1)
 
-    create_output(clusters, "clusters")
+    create_output(clusters)
 
     #plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
     #plt.show()
