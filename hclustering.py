@@ -6,6 +6,16 @@ from kmeans import euclid_distances
 import linecache
 import sys
 
+# For encoding the JSON
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 def distance_matrix(data):
     distances = pd.DataFrame()
@@ -105,7 +115,7 @@ def create_output(data):
     PRECISION = 2
     np.set_printoptions(formatter={'float': f'{{:0.{PRECISION}f}}'.format})
     print ('------------------------------------')
-    print(f'--- HIERARCHAL CLUSTERING OUTPUT ---')
+    print(f'-- HIERARCHICAL CLUSTERING OUTPUT --')
     print ('------------------------------------')
     for cluster in data.iloc[:, -1].unique():
         subset = data[data.iloc[:, -1] == cluster].drop(data.columns.to_list()[-1], axis=1)
@@ -124,7 +134,7 @@ def create_output(data):
         print ('------------------------------------')
 
 if __name__ == "__main__":
-    TESTING = True
+    TESTING = False
     if TESTING:
         fileName = "input_files/mammal_milk.csv"
         threshold = 30
@@ -132,7 +142,7 @@ if __name__ == "__main__":
     data = readData(fileName)
 
     dendrogram = agglomerative(data)
-    print(json.dumps(dendrogram, indent=1))
+    print(json.dumps(dendrogram, indent=1, cls=NpEncoder))
 
     if threshold:
         cluster_list = get_clusters(dendrogram, threshold)
