@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import linecache
 import sys
+import os
 
 
 class DBPoint:
@@ -157,22 +158,19 @@ def outputResults(listOfDBPoints, numClusters):
         print ('------------------------------------')
     # Outlier info
     print(f'-------- OUTLIER STATISTICS --------')
-    print(f'Percent of data as outliers: {round(len(clustersArr[0])/len(listOfDBPoints), PRECISION)}')
+    print(f'Percent of data as outliers: {round(len(clustersArr[0])/len(listOfDBPoints), PRECISION) * 100}%')
     print(f'Total number of outliers: {len(clustersArr[0])}')
     for point in clustersArr[0]: print(point)
 
 
 if __name__ == "__main__":
-    TESTING = True
+    TESTING = False
     VERBOSE = 0
     SHOW_PLOT = False
     if TESTING:
-        fileName = "input_files/AccidentsSet03.csv"
-        epsilon = 1
-        numPoints = 2
-        # Good for iris?
-        #epsilon = 1
-        #numPoints = 2
+        fileName = "input_files/many_clusters.csv"
+        epsilon = 6
+        numPoints = 6
     else: fileName, epsilon, numPoints = handleCommandLineParams(sys.argv)
     data = readData(fileName)
     listOfDBPoints = buildPointList(data, VERBOSE)
@@ -180,12 +178,18 @@ if __name__ == "__main__":
 
     print(f'Epsilon: {epsilon}, MinPoints: {numPoints} - Created {numClusters} clusters.')
     outputResults(listOfDBPoints, numClusters)
-    
-    # Hwere we graph... TODO: move to function
+
+
     if SHOW_PLOT:
         clusters = []
         for point in listOfDBPoints: clusters.append(point.cluster)
         clusters = pd.concat([data, pd.Series(clusters, name="clusters")], axis=1)
+
+        f = fileName.replace('.csv', '.png').split('/')
+        outputImageName = 'out/dbscan/' + f[len(f)-1]
+        
         plt.scatter(clusters.iloc[:,0], clusters.iloc[:,1], c=clusters.clusters)
-        #plt.scatter(data.iloc[:,0], data.iloc[:,1])
+        
+        plt.savefig(outputImageName)
         plt.show()
+        
