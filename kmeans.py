@@ -85,7 +85,7 @@ def create_output(data):
         print ('------------------------------------')
 
 if __name__ == "__main__":
-    TESTING = True
+    TESTING = False
     if TESTING:
         fileName = "input_files/mammal_milk.csv"
         k = 4
