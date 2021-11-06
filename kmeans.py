@@ -27,7 +27,7 @@ def k_means(data, k):
     X = data.copy()
     centroids = select_Centroids(X, k)
     epochs = 1
-    while epochs <= 300:
+    while epochs <= 500:
         clusters = euclid_distances(X, centroids).idxmin(axis=1).values
         old_centroids = centroids.copy()
         for centroid in range(len(centroids)):
